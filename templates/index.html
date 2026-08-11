@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <meta name="description" content="Burn-Ex: AI-powered real-time calorie estimation with pose tracking — privacy-preserving, fully local, no external APIs."/>
+  <title>Burn-Ex · AI Calorie Estimator</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;900&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet"/>
+  <link rel="stylesheet" href="/static/css/style.css"/>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+</head>
+<body>
+
+<!-- ==================== HEADER ==================== -->
+<header class="header">
+  <div class="header-inner">
+    <div class="brand">
+      <div class="brand-icon" aria-hidden="true">🔥</div>
+      <div class="brand-text">
+        <span class="brand-name">Burn<span class="brand-accent">-Ex</span></span>
+        <span class="brand-tagline">AI Calorie Estimator · Privacy-Preserving · 100% Local</span>
+      </div>
+    </div>
+    <div class="header-right">
+      <div id="session-timer" class="session-timer">00:00</div>
+      <div id="connection-badge" class="badge badge-connecting" role="status">● Connecting…</div>
+      <div class="fps-pill" id="fps-display" aria-label="Frames per second">-- FPS</div>
+    </div>
+  </div>
+</header>
+
+<!-- ==================== MAIN ==================== -->
+<main class="main">
+
+  <!-- LEFT COLUMN: Video + controls -->
+  <section class="panel panel-video" aria-label="Live video feed">
+    <div class="panel-header">
+      <h2 class="panel-title">Live Pose Feed</h2>
+      <div id="auto-badge" class="activity-badge">AUTO</div>
+    </div>
+
+    <div class="video-wrapper">
+      <img id="video-feed" src="/video_feed" alt="Live webcam with pose skeleton overlay"
+           class="video-feed" loading="eager"/>
+      <!-- HUD overlaid on top-left of video -->
+      <div class="video-hud" aria-hidden="true">
+        <div class="hud-row">
+          <span class="hud-lbl">AI Rate</span>
+          <span id="hud-pred" class="hud-val hud-blue">—</span>
+        </div>
+        <div class="hud-row">
+          <span class="hud-lbl">Total</span>
+          <span id="hud-total" class="hud-val hud-green">— kcal</span>
+        </div>
+        <div class="hud-row">
+          <span class="hud-lbl">Reps</span>
+          <span id="hud-reps" class="hud-val hud-purple">0</span>
+        </div>
+      </div>
+      <!-- Confidence bar bottom of video -->
+      <div class="conf-bar-wrapper" aria-hidden="true">
+        <div class="conf-bar-label">Auto Confidence</div>
+        <div class="conf-bar-bg">
+          <div id="conf-bar-fill" class="conf-bar-fill"></div>
+        </div>
+        <span id="conf-pct" class="conf-pct">0%</span>
+      </div>
+    </div>
+
+    <!-- Activity selector -->
+    <div class="ctrl-block">
+      <p class="ctrl-label">Override Activity <span class="ctrl-hint">(or press 1–5 in video window; 0 = auto)</span></p>
+      <div class="activity-grid" id="activity-grid">
+        <button class="act-btn" data-label="idle"          id="btn-idle">😴 Idle</button>
+        <button class="act-btn" data-label="walking"       id="btn-walking">🚶 Walking</button>
+        <button class="act-btn" data-label="jogging"       id="btn-jogging">🏃 Jogging</button>
+        <button class="act-btn" data-label="jumping_jacks" id="btn-jacks">⭐ Jacks</button>
+        <button class="act-btn" data-label="squats"        id="btn-squats">🏋️ Squats</button>
+        <button class="act-btn act-btn-auto"  id="btn-auto">🤖 Auto</button>
+      </div>
+      <button class="reset-btn" id="btn-reset" aria-label="Reset session">↺ Reset Session</button>
+    </div>
+  </section>
+
+  <!-- RIGHT COLUMN: Metrics + charts -->
+  <section class="panel panel-metrics" aria-label="Session metrics">
+
+    <!-- Top: 4 metric cards -->
+    <div class="metric-grid">
+
+      <div class="metric-card card-blue" id="card-ai">
+        <div class="card-icon">⚡</div>
+        <div class="card-body">
+          <div class="card-label">AI Burn Rate</div>
+          <div class="card-value" id="val-pred">—</div>
+          <div class="card-unit">kcal / min</div>
+          <div class="card-bar-bg"><div class="card-bar" id="bar-pred"></div></div>
+        </div>
+      </div>
+
+      <div class="metric-card card-orange" id="card-met">
+        <div class="card-icon">📊</div>
+        <div class="card-body">
+          <div class="card-label">MET Reference</div>
+          <div class="card-value" id="val-met">—</div>
+          <div class="card-unit">kcal / min</div>
+          <div class="card-bar-bg"><div class="card-bar bar-orange" id="bar-met"></div></div>
+        </div>
+      </div>
+
+      <div class="metric-card card-red" id="card-total">
+        <div class="card-icon">🔥</div>
+        <div class="card-body">
+          <div class="card-label">Session Burned</div>
+          <div class="card-value card-value-xl" id="val-total">0.00</div>
+          <div class="card-unit">kcal total</div>
+        </div>
+      </div>
+
+      <div class="metric-card card-purple" id="card-reps">
+        <div class="card-icon">🏅</div>
+        <div class="card-body">
+          <div class="card-label">Reps Counted</div>
+          <div class="card-value card-value-xl" id="val-reps">0</div>
+          <div class="card-unit">reps this session</div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Bio row -->
+    <div class="bio-row">
+      <div class="bio-card">
+        <div class="bio-lbl">Intensity</div>
+        <div class="bio-val" id="val-intensity">0.000</div>
+      </div>
+      <div class="bio-card">
+        <div class="bio-lbl">L Knee</div>
+        <div class="bio-val" id="val-lknee">—°</div>
+      </div>
+      <div class="bio-card">
+        <div class="bio-lbl">R Knee</div>
+        <div class="bio-val" id="val-rknee">—°</div>
+      </div>
+      <div class="bio-card">
+        <div class="bio-lbl">Activity</div>
+        <div class="bio-val bio-activity" id="val-activity">—</div>
+      </div>
+    </div>
+
+    <!-- Dual chart block -->
+    <div class="chart-row">
+      <div class="chart-card">
+        <div class="chart-hdr">
+          <h3 class="chart-title">Burn Rate</h3>
+          <span class="chart-sub">kcal/min (AI, EMA smoothed)</span>
+        </div>
+        <div class="chart-wrap">
+          <canvas id="chart-rate" aria-label="Calorie burn rate over time"></canvas>
+        </div>
+      </div>
+      <div class="chart-card">
+        <div class="chart-hdr">
+          <h3 class="chart-title">Session Cumulative</h3>
+          <span class="chart-sub">kcal burned (running total)</span>
+        </div>
+        <div class="chart-wrap">
+          <canvas id="chart-total" aria-label="Cumulative calories burned"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <!-- Accuracy badge -->
+    <div class="acc-banner">
+      <span class="acc-icon">🎯</span>
+      <div class="acc-body">
+        <strong>Model Accuracy</strong> — R² 0.9999 · RMSE &lt;0.026 kcal/min · MAPE 0.03%
+        <span class="acc-sub">Trained on ACSM 2011 MET Compendium · 72,000 frames · 5 activities · Random Forest + GBR + Stacking</span>
+      </div>
+    </div>
+
+  </section>
+</main>
+
+<script src="/static/js/app.js"></script>
+</body>
+</html>
