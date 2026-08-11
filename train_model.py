@@ -113,7 +113,7 @@ def build_rf() -> RandomForestRegressor:
         n_estimators=200,
         max_depth=None,
         min_samples_leaf=2,
-        n_jobs=-1,
+        n_jobs=2,
         random_state=42,
     )
 
@@ -135,7 +135,7 @@ def build_stacking(rf: RandomForestRegressor,
         estimators=[('rf', rf), ('gbr', gbr)],
         final_estimator=Ridge(alpha=1.0),
         cv=5,
-        n_jobs=-1,
+        n_jobs=2,
     )
 
 
@@ -224,7 +224,7 @@ def train(csv_paths: list[str], weight_kg: float,
     if tune:
         search = RandomizedSearchCV(rf, RF_PARAM_GRID, n_iter=20,
                                     cv=5, scoring='neg_root_mean_squared_error',
-                                    n_jobs=-1, random_state=42, verbose=0)
+                                    n_jobs=2, random_state=42, verbose=0)
         search.fit(X_train_s, y_train)
         rf = search.best_estimator_
         print(f"          Best RF params: {search.best_params_}")
@@ -241,7 +241,7 @@ def train(csv_paths: list[str], weight_kg: float,
     if tune:
         search2 = RandomizedSearchCV(gbr, GBR_PARAM_GRID, n_iter=20,
                                      cv=5, scoring='neg_root_mean_squared_error',
-                                     n_jobs=-1, random_state=42, verbose=0)
+                                     n_jobs=2, random_state=42, verbose=0)
         search2.fit(X_train_s, y_train)
         gbr = search2.best_estimator_
         print(f"          Best GBR params: {search2.best_params_}")
@@ -335,7 +335,7 @@ def train(csv_paths: list[str], weight_kg: float,
     X_tr_c, X_te_c, y_tr_c, y_te_c = train_test_split(
         X_cls_s, y_cls, test_size=0.2, random_state=42)
     clf = RandomForestClassifier(n_estimators=150, max_depth=12,
-                                 n_jobs=-1, random_state=42)
+                                 n_jobs=2, random_state=42)
     clf.fit(X_tr_c, y_tr_c)
     clf_acc = accuracy_score(y_te_c, clf.predict(X_te_c))
     print(f"  Activity classifier accuracy: {clf_acc*100:.1f}%")

@@ -21,6 +21,7 @@ import pickle
 import sys
 import threading
 import time
+import json
 from collections import deque
 
 import cv2
@@ -262,7 +263,7 @@ def sse():
         while True:
             st = get_state()
             # To save bandwidth, we send cal_history only, and everything else
-            yield f"data: {jsonify(st).get_data(as_text=True)}\n\n"
+            yield f"data: {json.dumps(st)}\n\n"
             time.sleep(1.0)
     return Response(stream_with_context(event_stream()), mimetype="text/event-stream")
 
