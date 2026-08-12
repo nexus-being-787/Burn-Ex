@@ -254,12 +254,65 @@ function initButtons() {
   }
 }
 
+// ---- Camera Capture ----
+let videoStream = null;
+const TARGET_FPS = 10;
+let captureInterval = null;
+
+async function initCamera() {
+  const videoEl = $('local-cam');
+  const canvasEl = $('capture-canvas');
+  const displayImg = $('video-feed');
+  
+  if (!videoEl || !canvasEl || !displayImg) return;
+  
+  try {
+    videoStream = await navigator.mediaDevices.getUserMedia({ 
+      video: { width: { ideal: 640 }, height: { ideal: 480 }, facingMode: "user" }
+    });
+    videoEl.srcObject = videoStream;
+    
+    videoEl.onloadedmetadata = () => {
+      canvasEl.width = videoEl.videoWidth;
+      canvasEl.height = videoEl.videoHeight;
+      const ctx = canvasEl.getContext('2d');
+      
+      captureInterval = setInterval(async () => {
+        if (videoEl.readyState >= 2) {
+          ctx.drawImage(videoEl, 0, 0, canvasEl.width, canvasEl.height);
+          const base64Img = canvasEl.toDataURL('image/jpeg', 0.6); // slight compression
+          
+          try {
+            const response = await fetch('/api/process_frame', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ image: base64Img })
+            });
+            
+            if (response.ok) {
+              const data = await response.json();
+              if (data.image) displayImg.src = data.image;
+              if (data.state) applyState(data.state);
+            }
+          } catch (e) {
+            console.warn("Frame processing error:", e);
+          }
+        }
+      }, 1000 / TARGET_FPS);
+    };
+  } catch (err) {
+    console.error("Error accessing webcam:", err);
+    alert("Could not access webcam. Please ensure you have granted camera permissions.");
+  }
+}
+
 // ---- Boot ----
 document.addEventListener('DOMContentLoaded', () => {
   initCharts();
   initButtons();
   startTimer();
   connectSSE();
+  initCamera();
 
   // Fallback poll if EventSource unavailable
   if (!window.EventSource) {

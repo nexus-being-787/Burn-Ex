@@ -41,8 +41,13 @@
     </div>
 
     <div class="video-wrapper">
-      <img id="video-feed" src="/video_feed" alt="Live webcam with pose skeleton overlay"
-           class="video-feed" loading="eager"/>
+      <!-- Hidden elements for local camera capture -->
+      <video id="local-cam" autoplay playsinline muted style="display: none;"></video>
+      <canvas id="capture-canvas" style="display: none;"></canvas>
+      
+      <!-- Display element for AI annotated frames from backend -->
+      <img id="video-feed" alt="Live webcam with pose skeleton overlay"
+           class="video-feed" loading="eager" src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" />
       <!-- HUD overlaid on top-left of video -->
       <div class="video-hud" aria-hidden="true">
         <div class="hud-row">
