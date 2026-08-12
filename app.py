@@ -83,7 +83,7 @@ fps_count = 0
 last_fps_t = 0
 cal_history = []
 
-def init_models(model_dir: str, mp_model: str, weight_kg: float, ema_alpha: float = 0.12, no_auto: bool = False):
+def init_models(model_dir: str, mp_model: str, weight_kg: float, ema_alpha: float = 0.08, no_auto: bool = False):
     global models_loaded, landmarker, extractor, reg_pipeline, reg_cols
     global clf_pipeline, clf_cols, clf_classes, reg_buf, clf_buf, rep_ctr, ema
     global prev_t, start_t, last_fps_t
@@ -199,7 +199,7 @@ def process_frame():
     fps_count += 1
     fps = state.get('fps', 0.0)
     if now - last_fps_t >= 1.0:
-        fps = fps_count / (now - last_fps_t)
+        fps = round(fps_count / (now - last_fps_t), 1)
         fps_count = 0
         last_fps_t = now
         
@@ -222,8 +222,8 @@ def process_frame():
         calorie_history=list(cal_history)
     )
     
-    # Encode result frame back to base64
-    ret, buf = cv2.imencode('.jpg', frame, [cv2.IMWRITE_JPEG_QUALITY, 70])
+    # Encode result frame back to base64 with high quality for clear overlay
+    ret, buf = cv2.imencode('.jpg', frame, [cv2.IMWRITE_JPEG_QUALITY, 88])
     res_image = ""
     if ret:
         res_image = "data:image/jpeg;base64," + base64.b64encode(buf).decode('utf-8')

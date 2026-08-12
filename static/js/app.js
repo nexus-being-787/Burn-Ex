@@ -256,8 +256,7 @@ function initButtons() {
 
 // ---- Camera Capture ----
 let videoStream = null;
-const TARGET_FPS = 10;
-let captureInterval = null;
+let cameraRunning = false;
 
 async function initCamera() {
   const videoEl = $('local-cam');
@@ -268,42 +267,60 @@ async function initCamera() {
   
   try {
     videoStream = await navigator.mediaDevices.getUserMedia({ 
-      video: { width: { ideal: 640 }, height: { ideal: 480 }, facingMode: "user" }
+      video: { 
+        width:  { ideal: 720 }, 
+        height: { ideal: 540 }, 
+        facingMode: 'user',
+        frameRate: { ideal: 15 }
+      }
     });
     videoEl.srcObject = videoStream;
     
-    videoEl.onloadedmetadata = () => {
-      canvasEl.width = videoEl.videoWidth;
-      canvasEl.height = videoEl.videoHeight;
-      const ctx = canvasEl.getContext('2d');
-      
-      captureInterval = setInterval(async () => {
-        if (videoEl.readyState >= 2) {
-          ctx.drawImage(videoEl, 0, 0, canvasEl.width, canvasEl.height);
-          const base64Img = canvasEl.toDataURL('image/jpeg', 0.6); // slight compression
-          
-          try {
-            const response = await fetch('/api/process_frame', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ image: base64Img })
-            });
-            
-            if (response.ok) {
-              const data = await response.json();
-              if (data.image) displayImg.src = data.image;
-              if (data.state) applyState(data.state);
-            }
-          } catch (e) {
-            console.warn("Frame processing error:", e);
-          }
-        }
-      }, 1000 / TARGET_FPS);
-    };
+    await new Promise(resolve => { videoEl.onloadedmetadata = resolve; });
+    canvasEl.width  = videoEl.videoWidth;
+    canvasEl.height = videoEl.videoHeight;
+
+    cameraRunning = true;
+    captureLoop(videoEl, canvasEl, displayImg);
   } catch (err) {
-    console.error("Error accessing webcam:", err);
-    alert("Could not access webcam. Please ensure you have granted camera permissions.");
+    console.error('Error accessing webcam:', err);
+    const badge = $('connection-badge');
+    if (badge) { badge.textContent = '● Camera denied'; badge.className = 'badge badge-error'; }
+    console.warn('Grant camera permission and reload.');
   }
+}
+
+async function captureLoop(videoEl, canvasEl, displayImg) {
+  if (!cameraRunning) return;
+  const frameStart = performance.now();
+
+  try {
+    if (videoEl.readyState >= 2) {
+      const ctx = canvasEl.getContext('2d');
+      ctx.drawImage(videoEl, 0, 0, canvasEl.width, canvasEl.height);
+      // High quality (0.9) so backend gets sharp landmarks
+      const base64Img = canvasEl.toDataURL('image/jpeg', 0.9);
+      
+      const response = await fetch('/api/process_frame', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ image: base64Img })
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        if (data.image) displayImg.src = data.image;
+        if (data.state) applyState(data.state);
+      }
+    }
+  } catch (e) {
+    console.warn('Frame processing error:', e);
+  }
+
+  // Target ~15 fps but never faster than the server can keep up
+  const elapsed = performance.now() - frameStart;
+  const delay   = Math.max(0, 66 - elapsed); // 1000/15 ≈ 66ms
+  setTimeout(() => captureLoop(videoEl, canvasEl, displayImg), delay);
 }
 
 // ---- Boot ----
@@ -322,3 +339,4 @@ document.addEventListener('DOMContentLoaded', () => {
     }, 1200);
   }
 });
+
