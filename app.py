@@ -2,9 +2,10 @@
 """
 Burn-Ex -- Flask Web Application
 ----------------------------------
-Provides a modern dark-mode web dashboard for real-time calorie monitoring.
-Now uses SaaS-style architecture: client browser captures webcam, 
-and backend processes frames on-demand via /api/process_frame.
+Full fitness app with:
+- Real-time pose detection & calorie estimation (MediaPipe)
+- Authentication page (/auth)
+- AI workout planner via OpenRouter API (/api/generate-plan)
 """
 
 from __future__ import annotations
@@ -15,6 +16,16 @@ import time
 import json
 import threading
 import base64
+import urllib.request
+import urllib.error
+
+# Load environment variables from .env file
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    # dotenv not installed; env vars must be set manually
+    pass
 
 import cv2
 import numpy as np
@@ -28,6 +39,17 @@ from constants import ML_FEATURES, ROLLING_COLS, ACTIVITY_NAMES
 from realtime_estimator import EMA, RollingBuffer, RepCounter, load_regression_model, load_classifier
 
 app = Flask(__name__)
+app.secret_key = os.environ.get('FLASK_SECRET_KEY', 'burn-ex-dev-key')
+
+# OpenRouter config
+OPENROUTER_API_KEY = os.environ.get('OPENROUTER_API_KEY', '')
+OPENROUTER_FALLBACK_MODELS = [
+    'openai/gpt-oss-20b:free',
+    'nvidia/nemotron-3-super-120b-a12b:free',
+    'nvidia/nemotron-3.5-lightning:free',
+    'liquid/lfm-2.5-2.6b:free'
+]
+OPENROUTER_URL     = 'https://openrouter.ai/api/v1/chat/completions'
 
 # --------------------------------------------------------------------------
 # Global state (thread-safe via lock)
@@ -117,6 +139,79 @@ def init_models(model_dir: str, mp_model: str, weight_kg: float, ema_alpha: floa
 def index():
     return render_template('index.html')
 
+@app.route('/auth')
+def auth():
+    return render_template('auth.html')
+
+
+@app.route('/api/generate-plan', methods=['POST'])
+def generate_plan():
+    """Proxy to OpenRouter API for AI workout plan generation."""
+    if not OPENROUTER_API_KEY or OPENROUTER_API_KEY == 'your_openrouter_api_key_here':
+        return jsonify({'error': 'OPENROUTER_API_KEY not configured. Please add it to your .env file.'}), 503
+
+    data = request.json or {}
+    prompt = data.get('prompt', '')
+    if not prompt:
+        return jsonify({'error': 'No prompt provided'}), 400
+
+    headers = {
+        'Authorization': f'Bearer {OPENROUTER_API_KEY}',
+        'Content-Type': 'application/json',
+        'HTTP-Referer': 'http://localhost:5000',
+        'X-Title': 'Burn-Ex Fitness App',
+    }
+
+    last_error = "Unknown error"
+    
+    for model in OPENROUTER_FALLBACK_MODELS:
+        payload = json.dumps({
+            'model': model,
+            'messages': [
+                {
+                    'role': 'system',
+                    'content': (
+                        'You are an expert certified personal trainer and fitness coach. '
+                        'Always respond with valid JSON only, no markdown formatting. '
+                        'Include a "weekly_plan" (array of days with "day", "focus", "exercises") '
+                        'and an "app_controls" object with "target_kcal" (int) and "difficulty" (string). '
+                        'Also include a "nutrition_plan" object with "suggestion" (string describing food to eat based on the workout intensity) and "protein_target" (string).'
+                    )
+                },
+                {
+                    'role': 'user',
+                    'content': prompt
+                }
+            ],
+            'temperature': 0.7,
+            'max_tokens': 3000,
+        }).encode('utf-8')
+
+        try:
+            req = urllib.request.Request(OPENROUTER_URL, data=payload, headers=headers, method='POST')
+            with urllib.request.urlopen(req, timeout=60) as resp:
+                result = json.loads(resp.read().decode('utf-8'))
+            content = result.get('choices', [{}])[0].get('message', {}).get('content', '')
+            if content:
+                print(f"[OpenRouter] Successfully generated plan using {model}")
+                return jsonify({'content': content, 'model': model})
+            else:
+                last_error = f"Empty content from {model}"
+                print(f'[OpenRouter] {last_error}')
+        except urllib.error.HTTPError as e:
+            error_body = e.read().decode('utf-8')
+            print(f'[OpenRouter] HTTP Error {e.code} for {model}: {error_body}')
+            last_error = f'OpenRouter API error {e.code}: {error_body}'
+        except urllib.error.URLError as e:
+            print(f'[OpenRouter] URL Error for {model}: {e.reason}')
+            last_error = f'Network error: {e.reason}'
+        except Exception as e:
+            print(f'[OpenRouter] Unexpected error for {model}: {e}')
+            last_error = str(e)
+            
+    # If we get here, all models failed
+    return jsonify({'error': f'All fallback models failed. Last error: {last_error}'}), 502
+
 @app.route('/api/process_frame', methods=['POST'])
 def process_frame():
     global last_ts_ms, prev_t, start_t, fps_count, last_fps_t, cal_history
@@ -186,12 +281,25 @@ def process_frame():
             auto_label = clf_classes[best_idx]
             confidence = float(proba[best_idx])
             
+    # Effective label for GT
+    effective_label = label if label != 'unlabeled' else auto_label
+    gt_kcal = label_to_kcal_per_min(effective_label, weight_kg)
+
     # EMA smoothed prediction
     pred_kcal = ema.update(pred_kcal_raw)
-    total_kcal += pred_kcal * dt / 60.0
+    
+    # Strict calorie tracking: user must be moving (intensity > 0.25)
+    intensity = features['smoothed_intensity'] if features else 0.0
+    is_moving = intensity > 0.25
+    is_active = effective_label != 'idle' and is_moving
+    
+    if is_active:
+        total_kcal += pred_kcal * dt / 60.0
+        
+    display_kcal = pred_kcal if is_active else 0.0
     
     if len(cal_history) == 0 or now - cal_history[-1][0] >= 1.0:
-        cal_history.append((now - start_t, pred_kcal))
+        cal_history.append((now - start_t, display_kcal))
         if len(cal_history) > 300:
             cal_history.pop(0)
             
@@ -203,18 +311,14 @@ def process_frame():
         fps_count = 0
         last_fps_t = now
         
-    # Effective label for GT
-    effective_label = label if label != 'unlabeled' else auto_label
-    gt_kcal = label_to_kcal_per_min(effective_label, weight_kg)
-    
     # Update state
     set_state(
-        pred_kcal=pred_kcal,
+        pred_kcal=display_kcal,
         gt_kcal=gt_kcal,
         total_kcal=total_kcal,
         reps=rep_ctr.count,
         fps=round(fps, 1),
-        intensity=features['smoothed_intensity'] if features else 0.0,
+        intensity=intensity,
         left_knee=features['left_knee_angle'] if features else 0.0,
         right_knee=features['right_knee_angle'] if features else 0.0,
         auto_label=auto_label,

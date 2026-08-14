@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <meta name="description" content="Burn-Ex: AI-Powered Fitness — Login or create your account to start your personalized fitness journey."/>
+  <title>Burn-Ex · Login</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet"/>
+  <link rel="stylesheet" href="/static/css/auth.css"/>
+</head>
+<body>
+
+<div class="auth-wrapper">
+  <div class="auth-card" role="main">
+
+    <!-- ═══════════════════════════════════════════
+         LEFT PANEL — Branding & Hero
+    ═══════════════════════════════════════════ -->
+    <div class="auth-left">
+
+      <!-- Brand -->
+      <div class="brand">
+        <div class="brand-logo">🔥</div>
+        <div class="brand-info">
+          <span class="brand-name">Burn-Ex</span>
+          <span class="brand-tagline">Move Better. Burn Smarter.</span>
+        </div>
+      </div>
+
+      <!-- Headline -->
+      <div class="hero-text">
+        <h2 class="hero-heading">
+          <span class="accent">AI-Powered</span> Fitness<br>That Understands You
+        </h2>
+        <p class="hero-sub">
+          Real-time form analysis, personalized insights and accurate calorie estimation — all on your device.
+        </p>
+      </div>
+
+      <!-- Visual with kcal bubble -->
+      <div class="hero-visual">
+        <img
+          id="hero-img"
+          src="/static/hero_pose.png"
+          alt="Man doing push-up with AI pose skeleton overlay"
+          class="hero-img"
+        />
+        <div class="kcal-bubble" aria-label="238 kilocalories burned">
+          <span class="k-icon">🔥</span>
+          <span class="k-num">238</span>
+          <span class="k-unit">KCAL</span>
+        </div>
+      </div>
+
+      <!-- Feature Badges -->
+      <div class="feature-badges">
+        <div class="badge-card">
+          <div class="badge-icon blue">📈</div>
+          <div class="badge-info">
+            <h4>Smart Tracking</h4>
+            <p>AI tracks your reps, form & performance</p>
+          </div>
+        </div>
+        <div class="badge-card">
+          <div class="badge-icon purple">⚡</div>
+          <div class="badge-info">
+            <h4>Personalized</h4>
+            <p>Workouts and insights tailored for you</p>
+          </div>
+        </div>
+        <div class="badge-card">
+          <div class="badge-icon green">🛡️</div>
+          <div class="badge-info">
+            <h4>Privacy First</h4>
+            <p>All processing happens on your device</p>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /auth-left -->
+
+    <!-- ═══════════════════════════════════════════
+         RIGHT PANEL — Login / Sign Up Forms
+    ═══════════════════════════════════════════ -->
+    <div class="auth-right">
+
+      <!-- Alert -->
+      <div id="auth-alert" class="auth-alert" role="alert" aria-live="polite"></div>
+
+      <!-- ─── LOGIN FORM ─────────────────────────── -->
+      <div id="login-panel">
+        <div class="auth-form-header">
+          <h1>Welcome Back!</h1>
+          <p>Login to continue your fitness journey</p>
+        </div>
+
+        <form class="auth-form" id="login-form" novalidate autocomplete="on">
+
+          <div class="form-group">
+            <label class="form-label" for="login-email">Email</label>
+            <div class="input-wrap">
+              <input
+                id="login-email"
+                class="form-input"
+                type="email"
+                placeholder="Enter your email"
+                autocomplete="email"
+                required
+              />
+            </div>
+            <span class="field-error" id="login-email-err">Please enter a valid email address.</span>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="login-password">Password</label>
+            <div class="input-wrap">
+              <input
+                id="login-password"
+                class="form-input has-icon"
+                type="password"
+                placeholder="Enter your password"
+                autocomplete="current-password"
+                required
+              />
+              <span class="input-icon" id="toggle-login-pw" aria-label="Toggle password visibility" title="Show/hide password">👁</span>
+            </div>
+            <span class="field-error" id="login-pw-err">Password must be at least 6 characters.</span>
+          </div>
+
+          <div class="forgot-link">
+            <a href="#" id="forgot-link" aria-label="Forgot password">Forgot Password?</a>
+          </div>
+
+          <button type="submit" class="btn-primary" id="login-btn" aria-label="Login">
+            <span class="btn-spinner"></span>
+            <span class="btn-label">Login</span>
+          </button>
+
+          <div class="or-divider"><span>OR</span></div>
+
+          <button type="button" class="btn-google" id="google-login-btn" aria-label="Continue with Google">
+            <svg class="google-logo" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
+              <path fill="#FFC107" d="M43.611 20.083H42V20H24v8h11.303C33.654 32.657 29.332 36 24 36c-6.627 0-12-5.373-12-12s5.373-12 12-12c3.059 0 5.842 1.154 7.961 3.039l5.657-5.657C34.046 6.053 29.268 4 24 4 12.955 4 4 12.955 4 24s8.955 20 20 20 20-8.955 20-20c0-1.341-.138-2.65-.389-3.917z"/>
+              <path fill="#FF3D00" d="m6.306 14.691 6.571 4.819C14.655 15.108 19.001 12 24 12c3.059 0 5.842 1.154 7.961 3.039l5.657-5.657C34.046 6.053 29.268 4 24 4 16.318 4 9.656 8.337 6.306 14.691z"/>
+              <path fill="#4CAF50" d="M24 44c5.166 0 9.86-1.977 13.409-5.192l-6.19-5.238A11.91 11.91 0 0 1 24 36c-5.302 0-9.815-3.417-11.403-8.084l-6.515 5.023C9.505 39.556 16.227 44 24 44z"/>
+              <path fill="#1976D2" d="M43.611 20.083H42V20H24v8h11.303a12.04 12.04 0 0 1-4.087 5.571l.003-.002 6.19 5.238C36.971 39.205 44 34 44 24c0-1.341-.138-2.65-.389-3.917z"/>
+            </svg>
+            Continue with Google
+          </button>
+
+        </form>
+
+        <p class="auth-footer">
+          Don't have an account? <a href="#" id="go-signup">Sign up</a>
+        </p>
+      </div><!-- /login-panel -->
+
+
+      <!-- ─── SIGN UP FORM ────────────────────────── -->
+      <div id="signup-panel" style="display:none;">
+        <div class="auth-form-header">
+          <h1>Create Account</h1>
+          <p>Start your AI-powered fitness journey today</p>
+        </div>
+
+        <form class="auth-form" id="signup-form" novalidate autocomplete="off">
+
+          <div class="name-row">
+            <div class="form-group">
+              <label class="form-label" for="signup-fname">First Name</label>
+              <input id="signup-fname" class="form-input" type="text" placeholder="John" required/>
+              <span class="field-error" id="fname-err">Required.</span>
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="signup-lname">Last Name</label>
+              <input id="signup-lname" class="form-input" type="text" placeholder="Doe" required/>
+              <span class="field-error" id="lname-err">Required.</span>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="signup-email">Email</label>
+            <input id="signup-email" class="form-input" type="email" placeholder="john@example.com" required/>
+            <span class="field-error" id="signup-email-err">Please enter a valid email.</span>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="signup-password">Password</label>
+            <div class="input-wrap">
+              <input id="signup-password" class="form-input has-icon" type="password" placeholder="Create a strong password" required/>
+              <span class="input-icon" id="toggle-signup-pw" aria-label="Toggle password" title="Show/hide password">👁</span>
+            </div>
+            <div class="strength-bar"><div class="strength-fill" id="strength-fill"></div></div>
+            <span class="field-error" id="signup-pw-err">Must be at least 8 characters.</span>
+          </div>
+
+          <button type="submit" class="btn-primary" id="signup-btn" aria-label="Create account">
+            <span class="btn-spinner"></span>
+            <span class="btn-label">Create Account</span>
+          </button>
+
+          <div class="or-divider"><span>OR</span></div>
+
+          <button type="button" class="btn-google" id="google-signup-btn" aria-label="Sign up with Google">
+            <svg class="google-logo" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
+              <path fill="#FFC107" d="M43.611 20.083H42V20H24v8h11.303C33.654 32.657 29.332 36 24 36c-6.627 0-12-5.373-12-12s5.373-12 12-12c3.059 0 5.842 1.154 7.961 3.039l5.657-5.657C34.046 6.053 29.268 4 24 4 12.955 4 4 12.955 4 24s8.955 20 20 20 20-8.955 20-20c0-1.341-.138-2.65-.389-3.917z"/>
+              <path fill="#FF3D00" d="m6.306 14.691 6.571 4.819C14.655 15.108 19.001 12 24 12c3.059 0 5.842 1.154 7.961 3.039l5.657-5.657C34.046 6.053 29.268 4 24 4 16.318 4 9.656 8.337 6.306 14.691z"/>
+              <path fill="#4CAF50" d="M24 44c5.166 0 9.86-1.977 13.409-5.192l-6.19-5.238A11.91 11.91 0 0 1 24 36c-5.302 0-9.815-3.417-11.403-8.084l-6.515 5.023C9.505 39.556 16.227 44 24 44z"/>
+              <path fill="#1976D2" d="M43.611 20.083H42V20H24v8h11.303a12.04 12.04 0 0 1-4.087 5.571l.003-.002 6.19 5.238C36.971 39.205 44 34 44 24c0-1.341-.138-2.65-.389-3.917z"/>
+            </svg>
+            Sign up with Google
+          </button>
+
+        </form>
+
+        <p class="auth-footer">
+          Already have an account? <a href="#" id="go-login">Log in</a>
+        </p>
+      </div><!-- /signup-panel -->
+
+
+      <!-- ─── FORGOT PASSWORD ────────────────────── -->
+      <div id="forgot-panel" style="display:none;">
+        <div class="auth-form-header">
+          <h1>Reset Password</h1>
+          <p>Enter your email to receive reset instructions</p>
+        </div>
+
+        <form class="auth-form" id="forgot-form" novalidate>
+          <div class="form-group">
+            <label class="form-label" for="forgot-email">Email Address</label>
+            <input id="forgot-email" class="form-input" type="email" placeholder="Enter your email" required/>
+            <span class="field-error" id="forgot-email-err">Please enter a valid email.</span>
+          </div>
+          <button type="submit" class="btn-primary" id="forgot-btn">
+            <span class="btn-spinner"></span>
+            <span class="btn-label">Send Reset Link</span>
+          </button>
+        </form>
+
+        <p class="auth-footer">
+          <a href="#" id="back-to-login">← Back to Login</a>
+        </p>
+      </div><!-- /forgot-panel -->
+
+    </div><!-- /auth-right -->
+
+  </div><!-- /auth-card -->
+</div><!-- /auth-wrapper -->
+
+<script src="/static/js/auth.js"></script>
+</body>
+</html>

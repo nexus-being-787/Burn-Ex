@@ -3,191 +3,825 @@
 <head>
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <meta name="description" content="Burn-Ex: AI-powered real-time calorie estimation with pose tracking — privacy-preserving, fully local, no external APIs."/>
-  <title>Burn-Ex · AI Calorie Estimator</title>
+  <meta name="description" content="Burn-Ex: AI-Powered Fitness App — Real-time pose detection, personalized workout plans, and calorie estimation."/>
+  <title>Burn-Ex · AI Fitness</title>
   <link rel="preconnect" href="https://fonts.googleapis.com"/>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;900&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet"/>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet"/>
+  <link rel="stylesheet" href="/static/css/app-shell.css"/>
   <link rel="stylesheet" href="/static/css/style.css"/>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 </head>
 <body>
 
-<!-- ==================== HEADER ==================== -->
-<header class="header">
-  <div class="header-inner">
-    <div class="brand">
-      <div class="brand-icon" aria-hidden="true">🔥</div>
-      <div class="brand-text">
-        <span class="brand-name">Burn<span class="brand-accent">-Ex</span></span>
-        <span class="brand-tagline">AI Calorie Estimator · Privacy-Preserving · 100% Local</span>
-      </div>
-    </div>
-    <div class="header-right">
-      <div id="session-timer" class="session-timer">00:00</div>
-      <div id="connection-badge" class="badge badge-connecting" role="status">● Connecting…</div>
-      <div class="fps-pill" id="fps-display" aria-label="Frames per second">-- FPS</div>
-    </div>
-  </div>
-</header>
+<!-- Auth guard — redirect to /auth if not logged in -->
+<script>
+(function() {
+  try {
+    const u = JSON.parse(localStorage.getItem('burnex_user'));
+    if (!u || !u.email) { window.location.href = '/auth'; }
+  } catch(e) { window.location.href = '/auth'; }
+})();
+</script>
 
-<!-- ==================== MAIN ==================== -->
-<main class="main">
+<div class="app-shell">
 
-  <!-- LEFT COLUMN: Video + controls -->
-  <section class="panel panel-video" aria-label="Live video feed">
-    <div class="panel-header">
-      <h2 class="panel-title">Live Pose Feed</h2>
-      <div id="auto-badge" class="activity-badge">AUTO</div>
-    </div>
+  <!-- ═══════════════════════════════════════════════════════
+       SIDEBAR
+  ═══════════════════════════════════════════════════════ -->
+  <aside class="sidebar" id="sidebar" role="navigation" aria-label="Main navigation">
 
-    <div class="video-wrapper">
-      <!-- Hidden elements for local camera capture -->
-      <video id="local-cam" autoplay playsinline muted style="display: none;"></video>
-      <canvas id="capture-canvas" style="display: none;"></canvas>
-      
-      <!-- Display element for AI annotated frames from backend -->
-      <img id="video-feed" alt="Live webcam with pose skeleton overlay"
-           class="video-feed" loading="eager" src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" />
-      <!-- HUD overlaid on top-left of video -->
-      <div class="video-hud" aria-hidden="true">
-        <div class="hud-row">
-          <span class="hud-lbl">AI Rate</span>
-          <span id="hud-pred" class="hud-val hud-blue">—</span>
-        </div>
-        <div class="hud-row">
-          <span class="hud-lbl">Total</span>
-          <span id="hud-total" class="hud-val hud-green">— kcal</span>
-        </div>
-        <div class="hud-row">
-          <span class="hud-lbl">Reps</span>
-          <span id="hud-reps" class="hud-val hud-purple">0</span>
-        </div>
-      </div>
-      <!-- Confidence bar bottom of video -->
-      <div class="conf-bar-wrapper" aria-hidden="true">
-        <div class="conf-bar-label">Auto Confidence</div>
-        <div class="conf-bar-bg">
-          <div id="conf-bar-fill" class="conf-bar-fill"></div>
-        </div>
-        <span id="conf-pct" class="conf-pct">0%</span>
+    <div class="sidebar-brand">
+      <div class="brand-logo">🔥</div>
+      <div>
+        <div class="brand-name">Burn-Ex</div>
+        <div class="brand-tagline">Move Better. Burn Smarter.</div>
       </div>
     </div>
 
-    <!-- Activity selector -->
-    <div class="ctrl-block">
-      <p class="ctrl-label">Override Activity <span class="ctrl-hint">(or press 1–5 in video window; 0 = auto)</span></p>
-      <div class="activity-grid" id="activity-grid">
-        <button class="act-btn" data-label="idle"          id="btn-idle">😴 Idle</button>
-        <button class="act-btn" data-label="walking"       id="btn-walking">🚶 Walking</button>
-        <button class="act-btn" data-label="jogging"       id="btn-jogging">🏃 Jogging</button>
-        <button class="act-btn" data-label="jumping_jacks" id="btn-jacks">⭐ Jacks</button>
-        <button class="act-btn" data-label="squats"        id="btn-squats">🏋️ Squats</button>
-        <button class="act-btn act-btn-auto"  id="btn-auto">🤖 Auto</button>
-      </div>
-      <button class="reset-btn" id="btn-reset" aria-label="Reset session">↺ Reset Session</button>
-    </div>
-  </section>
+    <nav class="sidebar-nav">
+      <span class="nav-section-title">Main</span>
 
-  <!-- RIGHT COLUMN: Metrics + charts -->
-  <section class="panel panel-metrics" aria-label="Session metrics">
+      <button class="nav-item active" data-tab="dashboard" id="nav-dashboard" aria-current="page">
+        <span class="nav-icon">🏠</span> Dashboard
+      </button>
+      <button class="nav-item" data-tab="pose" id="nav-pose">
+        <span class="nav-icon">🦾</span> Pose Trainer
+        <span class="nav-badge">LIVE</span>
+      </button>
+      <button class="nav-item" data-tab="planner" id="nav-planner">
+        <span class="nav-icon">🤖</span> AI Planner
+      </button>
+      <button class="nav-item" data-tab="history" id="nav-history">
+        <span class="nav-icon">📊</span> History
+      </button>
 
-    <!-- Top: 4 metric cards -->
-    <div class="metric-grid">
+      <span class="nav-section-title" style="margin-top:8px">Settings</span>
+      <button class="nav-item" data-tab="profile" id="nav-profile">
+        <span class="nav-icon">👤</span> Profile
+      </button>
+    </nav>
 
-      <div class="metric-card card-blue" id="card-ai">
-        <div class="card-icon">⚡</div>
-        <div class="card-body">
-          <div class="card-label">AI Burn Rate</div>
-          <div class="card-value" id="val-pred">—</div>
-          <div class="card-unit">kcal / min</div>
-          <div class="card-bar-bg"><div class="card-bar" id="bar-pred"></div></div>
+    <div class="sidebar-footer">
+      <div class="sidebar-user">
+        <div class="user-avatar" id="user-avatar-sidebar">?</div>
+        <div class="user-info">
+          <div class="user-name" id="user-name-sidebar">Loading…</div>
+          <div class="user-email" id="user-email-sidebar"></div>
         </div>
-      </div>
-
-      <div class="metric-card card-orange" id="card-met">
-        <div class="card-icon">📊</div>
-        <div class="card-body">
-          <div class="card-label">MET Reference</div>
-          <div class="card-value" id="val-met">—</div>
-          <div class="card-unit">kcal / min</div>
-          <div class="card-bar-bg"><div class="card-bar bar-orange" id="bar-met"></div></div>
-        </div>
-      </div>
-
-      <div class="metric-card card-red" id="card-total">
-        <div class="card-icon">🔥</div>
-        <div class="card-body">
-          <div class="card-label">Session Burned</div>
-          <div class="card-value card-value-xl" id="val-total">0.00</div>
-          <div class="card-unit">kcal total</div>
-        </div>
-      </div>
-
-      <div class="metric-card card-purple" id="card-reps">
-        <div class="card-icon">🏅</div>
-        <div class="card-body">
-          <div class="card-label">Reps Counted</div>
-          <div class="card-value card-value-xl" id="val-reps">0</div>
-          <div class="card-unit">reps this session</div>
-        </div>
-      </div>
-
-    </div>
-
-    <!-- Bio row -->
-    <div class="bio-row">
-      <div class="bio-card">
-        <div class="bio-lbl">Intensity</div>
-        <div class="bio-val" id="val-intensity">0.000</div>
-      </div>
-      <div class="bio-card">
-        <div class="bio-lbl">L Knee</div>
-        <div class="bio-val" id="val-lknee">—°</div>
-      </div>
-      <div class="bio-card">
-        <div class="bio-lbl">R Knee</div>
-        <div class="bio-val" id="val-rknee">—°</div>
-      </div>
-      <div class="bio-card">
-        <div class="bio-lbl">Activity</div>
-        <div class="bio-val bio-activity" id="val-activity">—</div>
+        <button class="logout-btn" id="logout-btn" title="Logout" aria-label="Logout">⬡</button>
       </div>
     </div>
 
-    <!-- Dual chart block -->
-    <div class="chart-row">
-      <div class="chart-card">
-        <div class="chart-hdr">
-          <h3 class="chart-title">Burn Rate</h3>
-          <span class="chart-sub">kcal/min (AI, EMA smoothed)</span>
-        </div>
-        <div class="chart-wrap">
-          <canvas id="chart-rate" aria-label="Calorie burn rate over time"></canvas>
-        </div>
+  </aside><!-- /sidebar -->
+
+  <!-- ═══════════════════════════════════════════════════════
+       MAIN AREA
+  ═══════════════════════════════════════════════════════ -->
+  <div class="main-area">
+
+    <!-- TOP BAR -->
+    <header class="topbar">
+      <div>
+        <div class="topbar-title" id="topbar-title">Dashboard</div>
+        <div class="topbar-subtitle" id="topbar-subtitle">Welcome back 👋</div>
       </div>
-      <div class="chart-card">
-        <div class="chart-hdr">
-          <h3 class="chart-title">Session Cumulative</h3>
-          <span class="chart-sub">kcal burned (running total)</span>
+      <div class="topbar-right">
+        <div class="topbar-badge badge-ai">🤖 AI Powered</div>
+        <div class="topbar-badge badge-live" id="live-badge" style="display:none">
+          <div class="dot"></div> Live
         </div>
-        <div class="chart-wrap">
-          <canvas id="chart-total" aria-label="Cumulative calories burned"></canvas>
-        </div>
+        <div class="topbar-icon-btn" title="Notifications">🔔</div>
+        <div class="topbar-icon-btn" title="Settings">⚙️</div>
       </div>
+    </header>
+
+    <!-- ═══ TAB AREA ════════════════════════════════════════ -->
+    <div class="tab-area">
+
+      <!-- ────────────────────────────────────────────────────
+           TAB: Dashboard
+      ──────────────────────────────────────────────────── -->
+      <div class="tab-pane active" id="tab-dashboard">
+
+        <div class="dash-greeting">
+          <h2 id="greeting-text">Good morning, Champion! 💪</h2>
+          <p id="greeting-date">Let's crush today's goals.</p>
+        </div>
+
+        <!-- Stats Grid -->
+        <div class="stats-grid">
+          <div class="stat-card">
+            <div class="stat-card-top">
+              <div class="stat-icon orange">🔥</div>
+              <span class="stat-change" id="dash-kcal-change">+12%</span>
+            </div>
+            <div class="stat-value" id="dash-total-kcal">0</div>
+            <div class="stat-label">Calories Burned Today</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-card-top">
+              <div class="stat-icon blue">🏅</div>
+              <span class="stat-change" id="dash-reps-change">+5</span>
+            </div>
+            <div class="stat-value" id="dash-total-reps">0</div>
+            <div class="stat-label">Total Reps This Session</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-card-top">
+              <div class="stat-icon green">⏱</div>
+              <span class="stat-change">Active</span>
+            </div>
+            <div class="stat-value" id="dash-session-time">00:00</div>
+            <div class="stat-label">Session Duration</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-card-top">
+              <div class="stat-icon purple">🔥</div>
+              <span class="stat-change">Week</span>
+            </div>
+            <div class="stat-value" id="dash-streak">7</div>
+            <div class="stat-label">Day Streak 🔥</div>
+          </div>
+        </div>
+
+        <!-- Row 2 -->
+        <div class="dash-grid-2">
+
+          <!-- Weekly Activity -->
+          <div class="dash-card">
+            <div class="dash-card-header">
+              <span class="dash-card-title">📅 Weekly Activity</span>
+              <a class="dash-card-link" onclick="switchTab('history')">View all →</a>
+            </div>
+            <div class="weekly-bars" id="weekly-bars">
+              <!-- rendered by JS -->
+            </div>
+          </div>
+
+          <!-- Recent Activity -->
+          <div class="dash-card">
+            <div class="dash-card-header">
+              <span class="dash-card-title">⚡ Recent Sessions</span>
+              <a class="dash-card-link" onclick="switchTab('history')">View all →</a>
+            </div>
+            <div class="activity-list" id="recent-activity-list">
+              <!-- rendered by JS -->
+            </div>
+          </div>
+
+        </div>
+
+        <!-- Row 3 -->
+        <div class="dash-grid-2">
+
+          <!-- Streak Card -->
+          <div class="dash-card">
+            <div class="dash-card-header">
+              <span class="dash-card-title">🔥 Streak</span>
+            </div>
+            <div class="streak-display">
+              <div class="streak-number" id="streak-count">7</div>
+              <div class="streak-label">Day Workout Streak</div>
+              <div class="streak-days" id="streak-days-row">
+                <!-- rendered by JS -->
+              </div>
+            </div>
+          </div>
+
+          <!-- AI Insights -->
+          <div class="dash-card">
+            <div class="dash-card-header">
+              <span class="dash-card-title">🤖 AI Insights</span>
+            </div>
+            <div id="ai-insights" style="display:flex;flex-direction:column;gap:10px">
+              <div class="activity-item">
+                <div class="act-dot" style="background:var(--accent)"></div>
+                <div class="act-name" style="font-size:13px">Your push-up form has improved by 23% this week!</div>
+              </div>
+              <div class="activity-item">
+                <div class="act-dot" style="background:var(--orange)"></div>
+                <div class="act-name" style="font-size:13px">Try adding 5 more squats to beat your personal best.</div>
+              </div>
+              <div class="activity-item">
+                <div class="act-dot" style="background:var(--green)"></div>
+                <div class="act-name" style="font-size:13px">Best calorie burn: Wednesday at 8.4 kcal/min.</div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+      </div><!-- /tab-dashboard -->
+
+
+      <!-- ────────────────────────────────────────────────────
+           TAB: Pose Trainer
+      ──────────────────────────────────────────────────── -->
+      <div class="tab-pane" id="tab-pose">
+
+        <div class="dash-greeting">
+          <h2>🦾 Pose Trainer</h2>
+          <p>Real-time AI pose detection, rep counting and calorie estimation.</p>
+        </div>
+
+        <div class="pose-layout">
+
+          <!-- Left: Video -->
+          <div>
+            <div class="pose-video-card">
+              <div class="pose-video-header">
+                <span class="pose-video-title">Live Pose Feed</span>
+                <div class="pose-status-badge" id="pose-status-badge" style="background:#FEF2F2;color:#DC2626">
+                  <span style="width:7px;height:7px;border-radius:50%;background:#DC2626;display:inline-block"></span>
+                  Offline
+                </div>
+              </div>
+              <div class="pose-video-body">
+                <!-- Hidden elements for local camera capture -->
+                <video id="local-cam" autoplay playsinline muted style="display:none;"></video>
+                <canvas id="capture-canvas" style="display:none;"></canvas>
+
+                <!-- Display element for AI annotated frames from backend -->
+                <div style="position:relative">
+                  <img id="video-feed"
+                       alt="Live webcam with pose skeleton overlay"
+                       class="video-feed"
+                       style="width:100%;border-radius:10px;background:#F0F2F7;min-height:320px;object-fit:contain;"
+                       loading="eager"
+                       src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7"/>
+
+                  <!-- HUD -->
+                  <div class="video-hud" aria-hidden="true">
+                    <div class="hud-row">
+                      <span class="hud-lbl">AI Rate</span>
+                      <span id="hud-pred" class="hud-val hud-blue">—</span>
+                    </div>
+                    <div class="hud-row">
+                      <span class="hud-lbl">Total</span>
+                      <span id="hud-total" class="hud-val hud-green">— kcal</span>
+                    </div>
+                    <div class="hud-row">
+                      <span class="hud-lbl">Reps</span>
+                      <span id="hud-reps" class="hud-val hud-purple">0</span>
+                    </div>
+                  </div>
+
+                  <!-- Confidence bar -->
+                  <div class="conf-bar-wrapper" aria-hidden="true">
+                    <div class="conf-bar-label">Auto Confidence</div>
+                    <div class="conf-bar-bg">
+                      <div id="conf-bar-fill" class="conf-bar-fill"></div>
+                    </div>
+                    <span id="conf-pct" class="conf-pct">0%</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Dual charts -->
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:14px">
+              <div class="dash-card" style="padding:14px">
+                <div class="dash-card-header" style="margin-bottom:10px">
+                  <span class="dash-card-title" style="font-size:13px">Burn Rate</span>
+                  <span style="font-size:11px;color:var(--text-muted)">kcal/min</span>
+                </div>
+                <div style="height:110px"><canvas id="chart-rate"></canvas></div>
+              </div>
+              <div class="dash-card" style="padding:14px">
+                <div class="dash-card-header" style="margin-bottom:10px">
+                  <span class="dash-card-title" style="font-size:13px">Cumulative</span>
+                  <span style="font-size:11px;color:var(--text-muted)">kcal total</span>
+                </div>
+                <div style="height:110px"><canvas id="chart-total"></canvas></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Right: Metrics + Controls -->
+          <div class="pose-metrics">
+
+            <div class="pose-metric-card">
+              <div class="pmc-label">⚡ AI Burn Rate</div>
+              <div style="display:flex;align-items:baseline;gap:6px">
+                <div class="pmc-value" id="val-pred">—</div>
+                <div class="pmc-unit">kcal/min</div>
+              </div>
+              <div class="pmc-bar"><div class="pmc-bar-fill" id="bar-pred" style="background:var(--accent);width:0%"></div></div>
+            </div>
+
+            <div class="pose-metric-card">
+              <div class="pmc-label">📊 MET Reference</div>
+              <div style="display:flex;align-items:baseline;gap:6px">
+                <div class="pmc-value" id="val-met">—</div>
+                <div class="pmc-unit">kcal/min</div>
+              </div>
+              <div class="pmc-bar"><div class="pmc-bar-fill" id="bar-met" style="background:var(--orange);width:0%"></div></div>
+            </div>
+
+            <div class="pose-metric-card">
+              <div style="display:flex;gap:16px">
+                <div>
+                  <div class="pmc-label">🔥 Session</div>
+                  <div class="pmc-value" id="val-total" style="font-size:28px">0.00</div>
+                  <div class="pmc-unit">kcal burned</div>
+                </div>
+                <div>
+                  <div class="pmc-label">🏅 Reps</div>
+                  <div class="pmc-value" id="val-reps" style="font-size:28px">0</div>
+                  <div class="pmc-unit">this session</div>
+                </div>
+              </div>
+            </div>
+
+            <div class="pose-metric-card">
+              <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px">
+                <div>
+                  <div class="pmc-label" style="font-size:10px">Intensity</div>
+                  <div style="font-size:16px;font-weight:800;color:var(--text)" id="val-intensity">0.000</div>
+                </div>
+                <div>
+                  <div class="pmc-label" style="font-size:10px">L Knee</div>
+                  <div style="font-size:16px;font-weight:800;color:var(--text)" id="val-lknee">—°</div>
+                </div>
+                <div>
+                  <div class="pmc-label" style="font-size:10px">R Knee</div>
+                  <div style="font-size:16px;font-weight:800;color:var(--text)" id="val-rknee">—°</div>
+                </div>
+              </div>
+              <div style="margin-top:8px">
+                <div class="pmc-label" style="font-size:10px">Activity</div>
+                <div style="font-size:15px;font-weight:800;color:var(--accent)" id="val-activity">—</div>
+              </div>
+            </div>
+
+            <!-- Activity Controls -->
+            <div class="activity-controls">
+              <div class="act-ctrl-title">Override Activity</div>
+              <div class="act-btn-grid" id="activity-grid">
+                <button class="act-ctrl-btn" data-label="idle"          id="btn-idle">😴 Idle</button>
+                <button class="act-ctrl-btn" data-label="walking"       id="btn-walking">🚶 Walking</button>
+                <button class="act-ctrl-btn" data-label="jogging"       id="btn-jogging">🏃 Jogging</button>
+                <button class="act-ctrl-btn" data-label="jumping_jacks" id="btn-jacks">⭐ Jacks</button>
+                <button class="act-ctrl-btn" data-label="squats"        id="btn-squats">🏋️ Squats</button>
+                <button class="act-ctrl-btn act-ctrl-btn auto-btn active" id="btn-auto">🤖 Auto</button>
+              </div>
+              <button class="reset-session-btn" id="btn-reset" aria-label="Reset session">↺ Reset Session</button>
+            </div>
+
+            <!-- Model accuracy -->
+            <div class="dash-card" style="padding:14px">
+              <div style="font-size:12px;color:var(--text-sub);line-height:1.6">
+                🎯 <strong>Model Accuracy</strong> — R² 0.9999 · RMSE &lt;0.026 kcal/min · MAPE 0.03%
+                <br><span style="font-size:11px;color:var(--text-muted)">Random Forest + GBR + Stacking · 72,000 frames · 5 activities</span>
+              </div>
+            </div>
+
+          </div><!-- /pose-metrics -->
+        </div><!-- /pose-layout -->
+
+      </div><!-- /tab-pose -->
+
+
+      <!-- ────────────────────────────────────────────────────
+           TAB: AI Planner
+      ──────────────────────────────────────────────────── -->
+      <div class="tab-pane" id="tab-planner">
+
+        <div class="planner-header">
+          <div class="planner-title">
+            <h2>🤖 AI Workout Planner</h2>
+            <p>Generate personalized weekly &amp; monthly workout schedules powered by AI</p>
+          </div>
+        </div>
+
+        <div id="planner-alert" class="auth-alert" style="margin-bottom:14px"></div>
+
+        <div class="planner-layout">
+
+          <!-- Form -->
+          <div>
+            <div class="planner-form-card">
+              <div class="planner-form-title">⚙️ Plan Settings</div>
+              <form class="planner-form" id="planner-form" novalidate>
+
+                <div class="form-group">
+                  <label for="plan-goal">🎯 Fitness Goal</label>
+                  <select id="plan-goal">
+                    <option value="weight_loss">Weight Loss &amp; Fat Burn</option>
+                    <option value="muscle_gain">Muscle Gain &amp; Strength</option>
+                    <option value="endurance">Endurance &amp; Cardio</option>
+                    <option value="flexibility">Flexibility &amp; Mobility</option>
+                    <option value="general">General Fitness</option>
+                  </select>
+                </div>
+
+                <div class="form-group">
+                  <label for="plan-level">💪 Experience Level</label>
+                  <select id="plan-level">
+                    <option value="beginner">Beginner</option>
+                    <option value="intermediate" selected>Intermediate</option>
+                    <option value="advanced">Advanced</option>
+                  </select>
+                </div>
+
+                <div class="form-group">
+                  <label for="plan-weeks">📅 Plan Duration (Weeks)</label>
+                  <input type="number" id="plan-weeks" min="1" max="12" value="4" placeholder="4"/>
+                </div>
+
+                <div class="form-group">
+                  <label for="plan-duration">⏱ Session Length (minutes)</label>
+                  <input type="number" id="plan-duration" min="15" max="120" value="45" placeholder="45"/>
+                </div>
+
+                <div class="form-group">
+                  <label>📆 Workout Days</label>
+                  <div class="days-selector">
+                    <span class="day-pill" data-day="Mon">Mon</span>
+                    <span class="day-pill" data-day="Tue">Tue</span>
+                    <span class="day-pill" data-day="Wed">Wed</span>
+                    <span class="day-pill" data-day="Thu">Thu</span>
+                    <span class="day-pill" data-day="Fri">Fri</span>
+                    <span class="day-pill" data-day="Sat">Sat</span>
+                    <span class="day-pill" data-day="Sun">Sun</span>
+                  </div>
+                </div>
+
+                <button type="submit" class="btn-generate" id="generate-btn">
+                  <span class="generate-spinner"></span>
+                  <span class="gen-label">✨ Generate Plan</span>
+                </button>
+
+              </form>
+            </div>
+
+            <!-- Saved Plans -->
+            <div class="planner-form-card" style="margin-top:14px">
+              <div class="planner-form-title">📚 Saved Plans</div>
+              <div id="saved-plans-wrap" class="activity-list" style="gap:8px">
+                <p style="font-size:13px;color:var(--text-muted)">No saved plans yet. Generate your first plan!</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Output -->
+          <div class="plans-output" id="plans-output">
+
+            <!-- AI Thinking -->
+            <div class="ai-thinking" id="ai-thinking" style="display:none">
+              <div class="ai-thinking-dots">
+                <span></span><span></span><span></span>
+              </div>
+              <span class="ai-thinking-text">🤖 AI is crafting your personalized workout plan…</span>
+            </div>
+
+            <!-- Plan header (shown after generation) -->
+            <div id="plan-header-block" style="display:none">
+              <div class="dash-card" style="margin-bottom:14px;background:linear-gradient(135deg,var(--accent) 0%,#818CF8 100%);color:#fff">
+                <div style="font-size:20px;font-weight:800;margin-bottom:4px" id="plan-name-display">My Plan</div>
+                <div style="font-size:13.5px;opacity:.85" id="plan-summary-display"></div>
+              </div>
+            </div>
+
+            <!-- Empty state -->
+            <div class="plan-empty" id="plan-empty-state">
+              <div class="plan-empty-icon">🏋️</div>
+              <h3>No Plan Generated Yet</h3>
+              <p>Configure your settings on the left and click "Generate Plan" to let AI create your personalized workout schedule.</p>
+            </div>
+
+            <!-- Plan content (hidden until generated) -->
+            <div id="plan-content-block" style="display:none">
+              <div class="plan-tab-switcher">
+                <button class="plan-tab-btn active" id="week-tab-btn">📅 Weekly Plan</button>
+                <button class="plan-tab-btn" id="month-tab-btn">🗓 Monthly View</button>
+              </div>
+
+              <div id="week-view"></div>
+              <div id="month-view" style="display:none"></div>
+            </div>
+
+          </div><!-- /plans-output -->
+
+        </div><!-- /planner-layout -->
+
+      </div><!-- /tab-planner -->
+
+
+      <!-- ────────────────────────────────────────────────────
+           TAB: History
+      ──────────────────────────────────────────────────── -->
+      <div class="tab-pane" id="tab-history">
+
+        <div class="dash-greeting">
+          <h2>📊 Workout History</h2>
+          <p>Track your progress and view past sessions.</p>
+        </div>
+
+        <!-- Summary stats -->
+        <div class="stats-grid" style="grid-template-columns:repeat(3,1fr);margin-bottom:20px">
+          <div class="stat-card">
+            <div class="stat-card-top"><div class="stat-icon orange">🔥</div></div>
+            <div class="stat-value" id="hist-total-kcal">0</div>
+            <div class="stat-label">Total Calories (All Time)</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-card-top"><div class="stat-icon blue">🏅</div></div>
+            <div class="stat-value" id="hist-total-sessions">0</div>
+            <div class="stat-label">Total Sessions</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-card-top"><div class="stat-icon green">⏱</div></div>
+            <div class="stat-value" id="hist-total-time">0h</div>
+            <div class="stat-label">Total Active Time</div>
+          </div>
+        </div>
+
+        <!-- History list -->
+        <div class="dash-card">
+          <div class="dash-card-header">
+            <span class="dash-card-title">Recent Sessions</span>
+          </div>
+          <div id="history-list" class="activity-list">
+            <div style="text-align:center;padding:40px;color:var(--text-muted)">
+              <div style="font-size:36px;margin-bottom:8px">📭</div>
+              <div style="font-size:14px">No sessions recorded yet. Start a Pose Trainer session to track your workouts!</div>
+              <button style="margin-top:14px;padding:10px 24px;background:var(--accent);color:#fff;border:none;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer" onclick="switchTab('pose')">
+                Start Training →
+              </button>
+            </div>
+          </div>
+        </div>
+
+      </div><!-- /tab-history -->
+
+
+      <!-- ────────────────────────────────────────────────────
+           TAB: Profile
+      ──────────────────────────────────────────────────── -->
+      <div class="tab-pane" id="tab-profile">
+
+        <div class="dash-greeting">
+          <h2>👤 Profile Settings</h2>
+          <p>Manage your account and fitness preferences.</p>
+        </div>
+
+        <div class="dash-grid-2">
+
+          <!-- Profile Card -->
+          <div class="dash-card">
+            <div class="dash-card-header"><span class="dash-card-title">Personal Info</span></div>
+            <div style="display:flex;flex-direction:column;gap:14px">
+              <div style="display:flex;align-items:center;gap:14px;margin-bottom:8px">
+                <div class="user-avatar" id="profile-avatar" style="width:56px;height:56px;font-size:22px">?</div>
+                <div>
+                  <div style="font-size:18px;font-weight:800" id="profile-name">Loading…</div>
+                  <div style="font-size:13px;color:var(--text-sub)" id="profile-email"></div>
+                </div>
+              </div>
+
+              <div class="form-group" style="display:flex;flex-direction:column;gap:6px">
+                <label style="font-size:13px;font-weight:600">Weight (kg)</label>
+                <input type="number" id="profile-weight" value="70" min="30" max="200" style="padding:10px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;font-family:inherit;outline:none"/>
+              </div>
+              <div class="form-group" style="display:flex;flex-direction:column;gap:6px">
+                <label style="font-size:13px;font-weight:600">Height (cm)</label>
+                <input type="number" id="profile-height" value="175" min="100" max="250" style="padding:10px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;font-family:inherit;outline:none"/>
+              </div>
+              <div class="form-group" style="display:flex;flex-direction:column;gap:6px">
+                <label style="font-size:13px;font-weight:600">Age</label>
+                <input type="number" id="profile-age" value="25" min="10" max="100" style="padding:10px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;font-family:inherit;outline:none"/>
+              </div>
+              <button onclick="saveProfile()" style="padding:11px;background:var(--accent);color:#fff;border:none;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer;transition:opacity .2s">
+                Save Changes
+              </button>
+            </div>
+          </div>
+
+          <!-- Preferences -->
+          <div class="dash-card">
+            <div class="dash-card-header"><span class="dash-card-title">Fitness Preferences</span></div>
+            <div style="display:flex;flex-direction:column;gap:14px">
+              <div class="form-group" style="display:flex;flex-direction:column;gap:6px">
+                <label style="font-size:13px;font-weight:600">Primary Goal</label>
+                <select id="pref-goal" style="padding:10px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;font-family:inherit;outline:none">
+                  <option value="weight_loss">Weight Loss</option>
+                  <option value="muscle_gain">Muscle Gain</option>
+                  <option value="endurance">Endurance</option>
+                  <option value="general" selected>General Fitness</option>
+                </select>
+              </div>
+              <div class="form-group" style="display:flex;flex-direction:column;gap:6px">
+                <label style="font-size:13px;font-weight:600">Activity Level</label>
+                <select id="pref-level" style="padding:10px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;font-family:inherit;outline:none">
+                  <option value="beginner">Beginner</option>
+                  <option value="intermediate" selected>Intermediate</option>
+                  <option value="advanced">Advanced</option>
+                </select>
+              </div>
+
+              <!-- Logout button -->
+              <button id="profile-logout-btn" style="padding:11px;background:#FEF2F2;color:var(--red);border:1.5px solid #FCA5A5;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer;margin-top:8px">
+                🚪 Logout
+              </button>
+            </div>
+          </div>
+
+        </div>
+
+      </div><!-- /tab-profile -->
+
+    </div><!-- /tab-area -->
+  </div><!-- /main-area -->
+
+</div><!-- /app-shell -->
+
+
+<script>
+/* ═══════════════════════════════════════════════════════════
+   App Shell Logic — Navigation, Auth, Dashboard
+═══════════════════════════════════════════════════════════ */
+
+'use strict';
+
+// ─── Session ──────────────────────────────────────────────
+const session = (function() {
+  try { return JSON.parse(localStorage.getItem('burnex_user')) || {}; } catch { return {}; }
+})();
+
+// Populate user info
+function populateUser() {
+  const name   = session.name  || 'Athlete';
+  const email  = session.email || '';
+  const initials = name.split(' ').map(n=>n[0]).join('').toUpperCase().slice(0,2) || '?';
+
+  const els = {
+    'user-avatar-sidebar': initials,
+    'user-name-sidebar':   name,
+    'user-email-sidebar':  email,
+    'profile-avatar':      initials,
+    'profile-name':        name,
+    'profile-email':       email,
+  };
+  Object.entries(els).forEach(([id, val]) => {
+    const el = document.getElementById(id);
+    if (el) el.textContent = val;
+  });
+
+  // Greeting
+  const hour = new Date().getHours();
+  const greet = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
+  const firstName = name.split(' ')[0];
+  const greetEl = document.getElementById('greeting-text');
+  if (greetEl) greetEl.textContent = `${greet}, ${firstName}! 💪`;
+
+  const dateEl = document.getElementById('greeting-date');
+  if (dateEl) dateEl.textContent = new Date().toLocaleDateString('en-US', { weekday:'long', month:'long', day:'numeric' });
+
+  const tbSubEl = document.getElementById('topbar-subtitle');
+  if (tbSubEl) tbSubEl.textContent = `${greet}, ${firstName} 👋`;
+}
+populateUser();
+
+// ─── Logout ───────────────────────────────────────────────
+function logout() {
+  localStorage.removeItem('burnex_user');
+  window.location.href = '/auth';
+}
+document.getElementById('logout-btn')?.addEventListener('click', logout);
+document.getElementById('profile-logout-btn')?.addEventListener('click', logout);
+
+// ─── Tab Navigation ───────────────────────────────────────
+const tabConfig = {
+  dashboard: { title: 'Dashboard',     subtitle: 'Your fitness overview' },
+  pose:      { title: 'Pose Trainer',  subtitle: 'AI-powered real-time form analysis' },
+  planner:   { title: 'AI Planner',    subtitle: 'Generate your workout schedule' },
+  history:   { title: 'History',       subtitle: 'Track your progress over time' },
+  profile:   { title: 'Profile',       subtitle: 'Manage your account settings' },
+};
+
+function switchTab(tabName) {
+  // Update nav
+  document.querySelectorAll('.nav-item').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.tab === tabName);
+    btn.setAttribute('aria-current', btn.dataset.tab === tabName ? 'page' : 'false');
+  });
+
+  // Update panes
+  document.querySelectorAll('.tab-pane').forEach(pane => {
+    pane.classList.toggle('active', pane.id === `tab-${tabName}`);
+  });
+
+  // Update topbar
+  const cfg = tabConfig[tabName] || {};
+  const titleEl = document.getElementById('topbar-title');
+  const subEl   = document.getElementById('topbar-subtitle');
+  if (titleEl) titleEl.textContent = cfg.title || tabName;
+  if (subEl)   subEl.textContent   = cfg.subtitle || '';
+
+  // Show live badge on pose tab
+  const liveBadge = document.getElementById('live-badge');
+  if (liveBadge) liveBadge.style.display = tabName === 'pose' ? 'flex' : 'none';
+}
+
+document.querySelectorAll('.nav-item[data-tab]').forEach(btn => {
+  btn.addEventListener('click', () => switchTab(btn.dataset.tab));
+});
+
+// ─── Dashboard Widgets ────────────────────────────────────
+function renderWeeklyBars() {
+  const wrap = document.getElementById('weekly-bars');
+  if (!wrap) return;
+  const days = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+  const today = new Date().getDay(); // 0=Sun
+  const todayIdx = today === 0 ? 6 : today - 1;
+  const data = [65, 82, 48, 90, 73, 55, 0];
+
+  wrap.innerHTML = days.map((d, i) => {
+    const isToday = i === todayIdx;
+    const pct = data[i];
+    return `
+      <div class="week-bar-wrap">
+        <div class="week-bar-outer">
+          <div class="week-bar-fill ${isToday ? 'today' : 'past'}"
+               style="height:${pct}%"
+               title="${d}: ${pct} kcal"></div>
+        </div>
+        <span class="week-bar-label">${d}</span>
+      </div>`;
+  }).join('');
+}
+
+function renderRecentActivity() {
+  const wrap = document.getElementById('recent-activity-list');
+  if (!wrap) return;
+  const sessions = [
+    { name:'Push-up Session',    time:'Today 8:30 AM', kcal:238, color:'var(--accent)' },
+    { name:'Squat & Lunge',      time:'Yesterday',      kcal:184, color:'var(--orange)' },
+    { name:'Full Body Cardio',   time:'2 days ago',     kcal:312, color:'var(--green)'  },
+  ];
+  wrap.innerHTML = sessions.map(s => `
+    <div class="activity-item">
+      <div class="act-dot" style="background:${s.color}"></div>
+      <div class="act-name">${s.name}</div>
+      <div class="act-time">${s.time}</div>
+      <div class="act-kcal">${s.kcal} kcal</div>
     </div>
+  `).join('');
+}
 
-    <!-- Accuracy badge -->
-    <div class="acc-banner">
-      <span class="acc-icon">🎯</span>
-      <div class="acc-body">
-        <strong>Model Accuracy</strong> — R² 0.9999 · RMSE &lt;0.026 kcal/min · MAPE 0.03%
-        <span class="acc-sub">Trained on ACSM 2011 MET Compendium · 72,000 frames · 5 activities · Random Forest + GBR + Stacking</span>
-      </div>
-    </div>
+function renderStreak() {
+  const wrap = document.getElementById('streak-days-row');
+  if (!wrap) return;
+  const days = ['M','T','W','T','F','S','S'];
+  const done = [true,true,true,true,true,false,false];
+  const today = 4; // Friday
+  wrap.innerHTML = days.map((d,i) => `
+    <div class="streak-day ${done[i] ? 'done' : ''} ${i===today ? 'today' : ''}">${d}</div>
+  `).join('');
+}
 
-  </section>
-</main>
+renderWeeklyBars();
+renderRecentActivity();
+renderStreak();
 
+// ─── Profile Save ─────────────────────────────────────────
+window.saveProfile = function() {
+  const w = document.getElementById('profile-weight')?.value;
+  const h = document.getElementById('profile-height')?.value;
+  const a = document.getElementById('profile-age')?.value;
+  if (w) localStorage.setItem('burnex_weight', w);
+  if (h) localStorage.setItem('burnex_height', h);
+  if (a) localStorage.setItem('burnex_age', a);
+  alert('Profile saved! ✅');
+};
+
+// Load saved profile data
+(function loadProfile() {
+  const w = localStorage.getItem('burnex_weight');
+  const h = localStorage.getItem('burnex_height');
+  const a = localStorage.getItem('burnex_age');
+  if (w) { const el = document.getElementById('profile-weight'); if(el) el.value = w; }
+  if (h) { const el = document.getElementById('profile-height'); if(el) el.value = h; }
+  if (a) { const el = document.getElementById('profile-age');    if(el) el.value = a; }
+})();
+
+// ─── Planner: show/hide empty state on generate ──────────
+(function patchPlanner() {
+  const form = document.getElementById('planner-form');
+  if (!form) return;
+  form.addEventListener('submit', function() {
+    document.getElementById('plan-empty-state').style.display = 'none';
+    document.getElementById('plan-content-block').style.display = '';
+    document.getElementById('plan-header-block').style.display = '';
+  });
+})();
+</script>
+
+<!-- Pose tracker logic (existing app.js) -->
 <script src="/static/js/app.js"></script>
+<!-- AI Planner logic -->
+<script src="/static/js/planner.js"></script>
+
 </body>
 </html>

@@ -1,7 +1,14 @@
 /* ===================================================================
-   Burn-Ex — Improved Dark Mode Dashboard CSS
-   Design: Deep space dark + neon accents + glassmorphism cards
+   Burn-Ex — Pose Trainer Tab Styles
+   Used within the app shell for the Live Feed, HUD, charts etc.
+   The dark neon palette here applies ONLY inside .tab-pane#tab-pose
    =================================================================== */
+
+/* Scoped overrides for pose tab video elements */
+.tab-pane#tab-pose .video-wrapper,
+.tab-pane#tab-pose .panel-video {
+  background: #000;
+}
 
 /* ---- Design Tokens ---- */
 :root {

@@ -317,13 +317,22 @@ def main():
                     auto_label  = clf_classes[best_idx]
                     confidence  = float(proba[best_idx])
 
-            # EMA smoothed prediction
-            pred_kcal = ema.update(pred_kcal_raw)
-            total_kcal += pred_kcal * dt / 60.0
-
             # Effective label for GT display
             effective_label = label if label != 'unlabeled' else auto_label
             gt_kcal = label_to_kcal_per_min(effective_label, args.weight)
+
+            # EMA smoothed prediction
+            pred_kcal = ema.update(pred_kcal_raw)
+            
+            # Strict calorie tracking: user must be moving (intensity > 0.25)
+            intensity = features['smoothed_intensity'] if features else 0.0
+            is_moving = intensity > 0.25
+            is_active = effective_label != 'idle' and is_moving
+            
+            if is_active:
+                total_kcal += pred_kcal * dt / 60.0
+                
+            display_kcal = pred_kcal if is_active else 0.0
 
             # FPS
             fps_count += 1
@@ -336,7 +345,7 @@ def main():
             elapsed_s = int(now - start_t)
             elapsed   = f"{elapsed_s // 60:02d}:{elapsed_s % 60:02d}"
 
-            draw_hud(frame, pred_kcal, gt_kcal, total_kcal,
+            draw_hud(frame, display_kcal, gt_kcal, total_kcal,
                      rep_ctr.count, label, auto_label, confidence,
                      fps, elapsed, features)
             cv2.imshow('Burn-Ex — Real-Time Estimator', frame)

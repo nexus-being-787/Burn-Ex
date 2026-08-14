@@ -108,3 +108,11 @@ env/
 # Let's keep models/configs but ignore the large CSV to stay light on Github.
 training_data.csv
 pose_landmarker_lite.task
+
+# Environment files
+.env
+mobile_native/.env
+
+
+# Nested git repo (tracked in Burn-Ex-Android)
+mobile_native/

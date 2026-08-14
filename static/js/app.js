@@ -1,7 +1,8 @@
 /**
- * Burn-Ex Dashboard — Improved JS
+ * Burn-Ex Dashboard — Updated for App Shell
  * Connects to SSE /sse, drives two Chart.js instances, shows auto-detection
  * confidence bar, session timer, EMA smoothing, activity button states.
+ * Camera is lazy-initialized when the Pose Trainer tab becomes active.
  */
 
 'use strict';
@@ -46,7 +47,7 @@ function setBar(id, value, maxVal = 15) {
   if (el) el.style.width = Math.min(100, (value / maxVal) * 100) + '%';
 }
 
-// ---- Session timer ----
+// ---- Session timer (updates #dash-session-time in dashboard) ----
 function startTimer() {
   sessionStart = Date.now();
   clearInterval(timerHandle);
@@ -54,8 +55,13 @@ function startTimer() {
     const s   = Math.floor((Date.now() - sessionStart) / 1000);
     const mm  = String(Math.floor(s / 60)).padStart(2, '0');
     const ss  = String(s % 60).padStart(2, '0');
+    const timeStr = `${mm}:${ss}`;
+    // Legacy element
     const el  = $('session-timer');
-    if (el) el.textContent = `${mm}:${ss}`;
+    if (el) el.textContent = timeStr;
+    // New dashboard card
+    const el2 = $('dash-session-time');
+    if (el2) el2.textContent = timeStr;
   }, 1000);
 }
 
@@ -129,7 +135,14 @@ function updateChartsFromHistory(history) {
 
 // ---- Apply SSE state ----
 function applyState(d) {
-  // Connection badge
+  // Update pose-status badge in new shell
+  const poseStatus = $('pose-status-badge');
+  if (poseStatus) {
+    poseStatus.style.background = '#ECFDF5';
+    poseStatus.style.color = '#065F46';
+    poseStatus.innerHTML = '<span style="width:7px;height:7px;border-radius:50%;background:#10B981;display:inline-block"></span> Live';
+  }
+  // Legacy connection badge
   const badge = $('connection-badge');
   if (badge) { badge.textContent = '● LIVE'; badge.className = 'badge badge-live'; }
 
@@ -174,11 +187,16 @@ function applyState(d) {
   setVal('val-total', totalStr);
   const hudTotal = $('hud-total');
   if (hudTotal) hudTotal.textContent = totalStr + ' kcal';
+  // Update dashboard card too
+  const dashKcal = $('dash-total-kcal');
+  if (dashKcal) dashKcal.textContent = parseFloat(totalStr).toFixed(0);
 
   // Reps
   setVal('val-reps', d.reps);
   const hudReps = $('hud-reps');
   if (hudReps) hudReps.textContent = d.reps;
+  const dashReps = $('dash-total-reps');
+  if (dashReps) dashReps.textContent = d.reps;
 
   // Bio
   const intEl = $('val-intensity');
@@ -215,12 +233,13 @@ function connectSSE() {
 
 // ---- Activity buttons ----
 function initButtons() {
-  document.querySelectorAll('.act-btn[data-label]').forEach(btn => {
+  // Support both old .act-btn and new .act-ctrl-btn selectors
+  document.querySelectorAll('.act-ctrl-btn[data-label], .act-btn[data-label]').forEach(btn => {
     btn.addEventListener('click', async () => {
       const label = btn.dataset.label;
       const res   = await fetch(`/api/label/${label}`, { method: 'POST' }).catch(() => null);
       if (res && res.ok) {
-        document.querySelectorAll('.act-btn').forEach(b => b.classList.remove('active'));
+        document.querySelectorAll('.act-ctrl-btn, .act-btn').forEach(b => b.classList.remove('active'));
         btn.classList.add('active');
       }
     });
@@ -230,7 +249,7 @@ function initButtons() {
   if (autoBtn) {
     autoBtn.addEventListener('click', async () => {
       await fetch('/api/label/unlabeled', { method: 'POST' }).catch(() => null);
-      document.querySelectorAll('.act-btn').forEach(b => b.classList.remove('active'));
+      document.querySelectorAll('.act-ctrl-btn, .act-btn').forEach(b => b.classList.remove('active'));
       autoBtn.classList.add('active');
     });
     // Start with auto selected
@@ -329,7 +348,28 @@ document.addEventListener('DOMContentLoaded', () => {
   initButtons();
   startTimer();
   connectSSE();
-  initCamera();
+
+  // Lazy-init camera: start when Pose Trainer tab is first activated
+  let cameraInited = false;
+  function maybeInitCamera() {
+    const poseTab = document.getElementById('tab-pose');
+    if (poseTab && poseTab.classList.contains('active') && !cameraInited) {
+      cameraInited = true;
+      initCamera();
+    }
+  }
+
+  // Also start camera if pose tab is already active on load
+  maybeInitCamera();
+
+  // Watch for tab switches via nav clicks
+  document.querySelectorAll('.nav-item[data-tab]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      if (btn.dataset.tab === 'pose') {
+        setTimeout(maybeInitCamera, 100);
+      }
+    });
+  });
 
   // Fallback poll if EventSource unavailable
   if (!window.EventSource) {
@@ -339,4 +379,3 @@ document.addEventListener('DOMContentLoaded', () => {
     }, 1200);
   }
 });
-
